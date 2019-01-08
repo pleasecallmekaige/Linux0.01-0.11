@@ -3,7 +3,7 @@
 ! 0x3000 is 0x30000 bytes = 196kB, more than enough for current
 ! versions of linux
 !
-SYSSIZE = 0x3000
+SYSSIZE = 0x3000 //16bytes 的个数
 !
 !	bootsect.s		(C) 1991 Linus Torvalds
 !
@@ -22,8 +22,9 @@ SYSSIZE = 0x3000
 ! read errors will result in a unbreakable loop. Reboot by hand. It
 ! loads pretty fast by getting whole sectors at a time whenever possible.
 
-.globl begtext, begdata, begbss, endtext, enddata, endbss
-.text
+.globl begtext, begdata, begbss, endtext, enddata, endbss //表示定义了这些全局可见的，即链接器可以识别，外部程序可见
+.text  //.text等是伪操作符，告诉编译器产生文本段，.text用于标识文本段的开始位置，
+             //此处的.text .data .bss表明这三个段重叠，不分段
 begtext:
 .data
 begdata:
@@ -31,48 +32,48 @@ begdata:
 begbss:
 .text
 
-SETUPLEN = 4				! nr of setup-sectors
-BOOTSEG  = 0x07c0			! original address of boot-sector
-INITSEG  = 0x9000			! we move boot here - out of the way
-SETUPSEG = 0x9020			! setup starts here
-SYSSEG   = 0x1000			! system loaded at 0x10000 (65536).
+SETUPLEN = 4				! nr（读） of setup-sectors   //boot 将要读后续setup扇区的个数
+BOOTSEG  = 0x07c0			! original address of boot-sector  计算机上电完成后，BIOS把boot-sector读取到0x07c0:0x0000地址处
+INITSEG  = 0x9000			! we move boot here - out of the way 将要把boot移动到0x9000:0x0000处
+SETUPSEG = 0x9020			! setup starts here  将要吧setup扇区读取到0x9020:0x0000处
+SYSSEG   = 0x1000			! system loaded at 0x10000 (65536). 将要吧system扇区读取到0x1000:0x0000处
 ENDSEG   = SYSSEG + SYSSIZE		! where to stop loading
 
 ! ROOT_DEV:	0x000 - same type of floppy as boot.
 !		0x301 - first partition on first drive etc
 ROOT_DEV = 0x306
 
-entry start
+entry start //entry是一个伪指令，用来告诉编译器程序入口
 start:
 	mov	ax,#BOOTSEG
-	mov	ds,ax
+	mov	ds,ax // ds = 0x07c0
 	mov	ax,#INITSEG
-	mov	es,ax
-	mov	cx,#256
-	sub	si,si
-	sub	di,di
+	mov	es,ax // es = 0x9000
+	mov	cx,#256 //要读取的字长  一个字=两个字节 即为512个字节
+	sub	si,si //si=0  ds:si = 0x7c00 源地址
+	sub	di,di //di=0  es:di = 0x9000 目的地址
 	rep
-	movw
-	jmpi	go,INITSEG
-go:	mov	ax,cs
+	movw  //开始搬动字
+	jmpi	go,INITSEG //(jump intersegment)段间跳转 IP=go  CS=INITSEG 然后跳转到CS:IP
+go:	mov	ax,cs //cs = 0x9000
 	mov	ds,ax
 	mov	es,ax
 ! put stack at 0x9ff00.
 	mov	ss,ax
 	mov	sp,#0xFF00		! arbitrary value >>512
 
-! load the setup-sectors directly after the bootblock.
-! Note that 'es' is already set up.
+! load the setup-sectors directly after the bootblock.//下面的代码是吧setup-sector放到bootblock后面
+! Note that 'es' is already set up.//ex已经设置好了
 
 load_setup:
-	mov	dx,#0x0000		! drive 0, head 0
-	mov	cx,#0x0002		! sector 2, track 0
-	mov	bx,#0x0200		! address = 512, in INITSEG
-	mov	ax,#0x0200+SETUPLEN	! service 2, nr of sectors
-	int	0x13			! read it
+	mov	dx,#0x0000		! drive 0, head 0  //dl=驱动器号  dh=磁头号
+	mov	cx,#0x0002		! sector 2, track 0  //cl=开始扇区 ch=柱面号
+	mov	bx,#0x0200		! address = 512, in INITSEG //ex:bx=读取到这个地址  ex=INITSEG的 bx=512，即把setup读取到紧接着boot之后
+	mov	ax,#0x0200+SETUPLEN	! service 2, nr of sectors //al=扇区数量（SETUPLEN） ah=0x02-读磁盘
+	int	0x13			! read it BIOS读磁盘中断调用
 	jnc	ok_load_setup		! ok - continue
 	mov	dx,#0x0000
-	mov	ax,#0x0000		! reset the diskette
+	mov	ax,#0x0000		! reset the diskette 复位
 	int	0x13
 	j	load_setup
 
@@ -84,22 +85,22 @@ ok_load_setup:
 	mov	ax,#0x0800		! AH=8 is get drive parameters
 	int	0x13
 	mov	ch,#0x00
-	seg cs
+	seg cs       //见当前目录下的about_seg.md介绍
 	mov	sectors,cx
 	mov	ax,#INITSEG
 	mov	es,ax
 
 ! Print some inane message
 
-	mov	ah,#0x03		! read cursor pos
+	mov	ah,#0x03		! read cursor pos  读取光标位置
 	xor	bh,bh
 	int	0x10
 	
-	mov	cx,#24
-	mov	bx,#0x0007		! page 0, attribute 7 (normal)
-	mov	bp,#msg1
-	mov	ax,#0x1301		! write string, move cursor
-	int	0x10
+	mov	cx,#24       //字符串的长度
+	mov	bx,#0x0007		! page 0, attribute 7 (normal) 这是配置INT10的视频页和属性值
+	mov	bp,#msg1        //ES:BP 字符串的段:偏移地址
+	mov	ax,#0x1301		! write string, move cursor ah=13-写字符串 al=01-移动光标
+	int	0x10                       //调用bios中断显示INITSEG:masg1处的字符串，上面的都算参数
 
 ! ok, we've written the message, now
 ! we want to load the system (at 0x10000)
@@ -136,7 +137,7 @@ root_defined:
 ! the setup-routine loaded directly after
 ! the bootblock:
 
-	jmpi	0,SETUPSEG
+	jmpi	0,SETUPSEG  //boot过程全部完成，跳转到setup.s
 
 ! This routine loads the system at address 0x10000, making sure
 ! no 64kB boundaries are crossed. We try to load it as fast as
@@ -250,7 +251,7 @@ msg1:
 root_dev:
 	.word ROOT_DEV
 boot_flag:
-	.word 0xAA55
+	.word 0xAA55    //512个字节最后两个，一定要设置为0x55 和0xAA ，bios才能识别boot为引导代码
 
 .text
 endtext:
