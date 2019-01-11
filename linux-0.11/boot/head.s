@@ -138,7 +138,7 @@ after_page_tables:
 	pushl $0
 	pushl $L6		# return address for main, if it decides to.
 	pushl $_main
-	jmp setup_paging
+	jmp setup_paging  //set_paging末尾有个ret指令：弹栈，并跳转到弹出的栈内地址，即_main
 L6:
 	jmp L6			# main should never return here, but
 				# just in case, we know what happens.
