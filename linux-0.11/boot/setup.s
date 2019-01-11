@@ -35,16 +35,16 @@ start:
 
 	mov	ax,#INITSEG	! this is done in bootsect already, but...
 	mov	ds,ax
-	mov	ah,#0x03	! read cursor pos
+	mov	ah,#0x03	! read cursor pos //ah=0x03-读取光标位置
 	xor	bh,bh
 	int	0x10		! save it in known place, con_init fetches
-	mov	[0],dx		! it from 0x90000.
+	mov	[0],dx		! it from 0x90000. //将返回值存入0x90000处
 
 ! Get memory size (extended mem, kB)
 
 	mov	ah,#0x88
 	int	0x15
-	mov	[2],ax
+	mov	[2],ax //获取扩展内存大小存入0x90002 单位KB
 
 ! Get video-card data:
 
@@ -113,14 +113,14 @@ is_disk1:
 	mov	ax,#0x0000
 	cld			! 'direction'=0, movs moves forward
 do_move:
-	mov	es,ax		! destination segment
+	mov	es,ax		! destination segment 目标地址段 0x0000
 	add	ax,#0x1000
 	cmp	ax,#0x9000
 	jz	end_move
-	mov	ds,ax		! source segment
+	mov	ds,ax		! source segment 源地址段 0x1000
 	sub	di,di
 	sub	si,si
-	mov 	cx,#0x8000
+	mov 	cx,#0x8000  //每次移动0x8000个字
 	rep
 	movsw
 	jmp	do_move
@@ -190,7 +190,11 @@ end_move:
 
 	mov	ax,#0x0001	! protected mode (PE) bit
 	lmsw	ax		! This is it!
-	jmpi	0,8		! jmp offset 0 of segment 8 (cs)
+	！加载机器状态字，也就是控制寄存器CR0，其比特位0置1将导致CPU
+	！切换到保护模式，并且运行在特权级0中 在Intel公司的手册上建议80386
+	！或以上CPU应该使用指令mov cr0, ax切换到保护模式。lmsw指令 仅用于
+	！兼容以前的286CPU。
+	jmpi	0,8		! jmp offset 0 of segment 8 (cs) 这里已经是保护模式寻址方式了，跳转地址是全局描述符表的第一个表。
 
 ! This routine checks that the keyboard command queue is empty
 ! No timeout is used - if this hangs there is something wrong with
@@ -220,8 +224,9 @@ idt_48:
 	.word	0,0			! idt base=0L
 
 gdt_48:
-	.word	0x800		! gdt limit=2048, 256 GDT entries
-	.word	512+gdt,0x9	! gdt base = 0X9xxxx
+	.word	0x800		! gdt limit=2048, 256 GDT entries  低16位为限制长度，为2048个字节，256个表项
+	.word	512+gdt,0x9	! gdt base = 0X9xxxx  //高32位0x90000+512=0x90200是setup.s的起始地址，再加上gdt标号的相对地址
+	                                                                                      //就是gdt表的绝对地址，即把gdt表的绝对地址告诉GDTR寄存器
 	
 .text
 endtext:
