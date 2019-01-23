@@ -59,7 +59,25 @@ POSIX是一个Unix的操作系统接口标准
   
   
 **整个调用过程为：**  
-![系统调用过程](./jpg/系统调用过程.JPG)  
+![系统调用过程](./jpg/系统调用过程.JPG)    
+  
+  
+##添加一个自己写的系统调用
+-  1、在kernel文件夹下添加一个who.c文件并在其中实现字符串的拷入和拷出。
+即`sys_iam()`函数和`sys_whoami()`函数  
+  
+  
+-  2、在include/unistd.h中添加一个系统调用号的宏定义`#define __NR_iam	72  `  
+在`include/linux/sys.h`中添加`extern int sys_iam();`  
+并且在`sys_call_table[]`函数指针数组末尾添加一个`sys_iam`函数名  
+最后在lib文件夹下创建一个iam.c文件，在里面实现int 0x80系统调用。  
+别忘了修改`kernel/system_call.s`中代表系统调用总数的变量`nr_system_calls`的值
+
+-  3、更改kernal文件夹下的Makefile文件，将who.c添加到内核代码中。要注意who.c中实现用户态和内核态数据拷贝不能
+直接使用指针进行，必须要用到`include/asm/segment.h`下的`get_fs_byte(const char * addr)`函数实现`mov %fs:s_addr,%ds:d_addr`其中fs表示用户数据段，s\_add是用户空间地址指针，ds是内核数据段，d\_addr是内核数据指针。同理还有一个`put_fs_byte(char val,char *addr)`
+
+-  4、应用程序需要自己定义一个系统调用来调用int 0x80
+或者用`_syscall1  _syscall2  _syscall3`这三个宏定义。
 
 
 
