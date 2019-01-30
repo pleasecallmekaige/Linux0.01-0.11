@@ -1,0 +1,34 @@
+#!/bin/sh
+export OSLAB_PATH="/home/xmk/oslab"	#$0就是执行run脚本时，run脚本以及所在目录的参数值
+																					#比如./run, $0=./run
+																					#dirname可以获取给定参数的目录部分
+
+if [ "$1" ] && [ "$1" = "init" ] ; then		#如果第一个参数非空且为init，即执行./run init
+    if [ -f $OSLAB_PATH/linux-0.11.tar.gz ]; then	#文件存在且为文件类型
+        [ -d $OSLAB_PATH/linux-0.11 ] && rm -rf $OSLAB_PATH/linux-0.11	#linux-0.11目录若存在则删除
+        mkdir $OSLAB_PATH/linux-0.11	#新建目录linux-0.11
+        tar zxf $OSLAB_PATH/linux-0.11.tar.gz -C $OSLAB_PATH/linux-0.11	#解压文件到目录linux-0.11
+        echo "Successfully recover linux-0.11."
+        exit 0
+    else
+        echo "Error: oslab cant't find a backup file named linux-0.11.tar.gz!"
+        exit 1
+    fi
+fi
+
+#sudo $OSLAB_PATH/mount-hdc
+
+#cp iam.c whoami.c $OSLAB_PATH/hdc/usr/root
+#cp testlab2.c testlab2.sh $OSLAB_PATH/hdc/usr/root
+#sudo umount $OSLAB_PATH/hdc
+
+
+if [ ! -e "$OSLAB_PATH/hdc/umounted" ]; then		#在0.11运行前检查hdc镜像是否挂在
+	echo umount hdc first										#如果挂在了hdc，首先卸载
+	sudo umount $OSLAB_PATH/hdc
+	if [ "$?" != "0" ]; then				#卸载操作是否成功
+		exit													#卸载失败，不能启动0.11，直接结束脚本
+	fi
+fi
+
+$OSLAB_PATH/bochs/bochs-gdb -q -f $OSLAB_PATH/bochs/bochsrc.bxrc
