@@ -10,4 +10,7 @@ Linux0.01&amp;0.11源码学习
 参见[操作系统的引导](./1Boot/OS_booting.md)。  
 
 ## 2. 系统调用    
-参见[系统调用](./2syscall/syscall.md)
+参见[系统调用](./2syscall/syscall.md)  
+  
+## 3. 进程切换方式的改动    
+参见[进程切换](./4processSwitchWithKernelStack/processSwitch.md)
